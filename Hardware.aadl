@@ -1,0 +1,147 @@
+-- 	Hardware Package
+package Hw
+
+public
+	--with EMV2;
+-------- memory RAM -------
+memory RAM
+	annex EMV2 {**
+		use types ErrorLibrary;
+	use behavior ErrorLibrary::FailStop;	
+	error propagations
+		bindings: out propagation {ServiceError};
+	end propagations;	
+	**};
+end RAM;
+
+-------- 1553B, Serial422 buses -------		
+bus MILSTD1553B
+end MILSTD1553B;
+
+bus implementation MILSTD1553B.i
+	annex emv2{**
+    use types ErrorLibrary;   
+     error propagations 	
+    	bindings: out propagation {ServiceError};
+ 	end propagations;
+    **};
+end MILSTD1553B.i;
+
+bus Serial422
+end Serial422;
+
+bus implementation Serial422.i	
+	annex emv2{**
+    use types ErrorLibrary;   
+     error propagations 	
+    	bindings: out propagation {ServiceError};
+ 	end propagations;
+    **};
+end Serial422.i;
+
+-------  Digital Controller Processor -------
+processor PowerPC
+features
+	BA_1553: requires bus access MILSTD1553B;
+	BA_422: requires bus access Serial422;
+	OnCDB: in event port;
+	annex EMV2 {**
+		use types ErrorLibrary;
+	use behavior ErrorLibrary::FailStop;	
+	error propagations
+		bindings: out propagation {ServiceError};
+	end propagations;	
+	**};
+end PowerPC;
+
+processor implementation PowerPC.i
+subcomponents
+	RAM: memory RAM;
+end PowerPC.i;
+
+------ EGSE processor -------
+processor Intel
+features
+	BA_422: requires bus access Serial422;
+end Intel;
+
+processor implementation Intel.i
+subcomponents
+	RAM: memory RAM;
+end Intel.i;
+
+-- Voter AC Processor
+processor PowerPC_voter
+features	
+	BA_1553: requires bus access MILSTD1553B;
+	BA_422: requires bus access Serial422; 
+end PowerPC_voter;
+
+processor implementation PowerPC_voter.i
+subcomponents
+	RAM: memory RAM;
+end PowerPC_voter.i;
+
+------ Sensor device -----------
+device sensor
+features
+	dados_sensor: out data port;
+	BA_sensor: requires bus access MILSTD1553B;
+annex emv2{**
+	use types ErrorLibrary;
+	use behavior ErrorLibrary::FailStop;	
+	error propagations
+		dados_sensor: out propagation {BadValue};
+	flows
+		sensorFail: error source dados_sensor{BadValue};
+	end propagations;	
+	component error behavior
+	propagations
+		FailStop-[]->dados_sensor{BadValue};
+	end component;		
+**};
+end sensor;
+
+-------- Sensor device -----------
+--device sensor
+--features
+--	dados_sensor: out data port;
+--	BA_sensor: requires bus access MILSTD1553B;
+--annex emv2{**
+--	use types ErrorLibrary;
+--	use behavior GPSEMLibrary::FailStopped;	
+--	error propagations
+--		dados_sensor: out propagation {BadValue};
+--	flows
+--		sensorFail: error source dados_sensor{BadValue};
+--	end propagations;	
+--	component error behavior
+--	Events
+--		MSIfailed: error event;
+--	transitions
+--		Operational -[MSIfailed]->FailStop;
+--	propagations
+--		FailStop-[]->dados_sensor{BadValue};
+--	end component;	
+--	properties
+--    	EMV2::Hazards => ([description => "Falha MSI";])applies to MSIfailed;	
+--**};
+--end sensor;
+
+
+----- Actuator device -------
+device atuador
+features
+	d_atuador: in data port;
+    BA_atuador: requires bus access MILSTD1553B;
+    annex emv2{**
+	use types ErrorLibrary;
+	use behavior ErrorLibrary::FailStop;
+	error propagations
+		d_atuador: in propagation {BadValue};
+	flows
+	    CTMSink : error sink d_atuador {BadValue};
+	end propagations;	
+**};
+end atuador; 		
+end Hw;

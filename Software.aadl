@@ -1,0 +1,58 @@
+package Sw
+public
+
+---------EGSE Process----------
+process BC
+features
+	p_out: out event port;
+end BC;
+
+process implementation BC.i
+end BC.i;
+
+----------Voter Process
+process AC
+features
+	inSOAB1: in data port;
+	inSOAB2: in data port;
+	dados_atuador: out data port;
+	Dados1_in_failed:out event port;
+	Dados2_in_failed: out event port;
+end AC;
+
+process implementation AC.i
+--	annex emv2{**
+--    use types ErrorLibrary;
+--  -- use behavior ErrorLibrary::FailStop;
+--    
+--    error propagations
+--    	inSOAB1: in propagation {AboveRange};
+--    	inSOAB2: in propagation {AboveRange};
+--   
+--   flows
+--      	CD1Error_sink: error sink inSOAB1 {AboveRange};
+--    	CD2Error_sink: error sink inSOAB2 {AboveRange};
+--     
+--    end propagations;
+--
+--    **};	
+	
+	
+end AC.i;
+
+-------------Embedded Software Process  
+process SOAB
+features
+	dados_sensor: in data port;
+	dados_AC: out data port;
+	annex emv2{**
+    use types ErrorLibrary;
+    use behavior ErrorLibrary::FailStop;
+    
+    **};
+end SOAB;
+
+process implementation SOAB.i
+end SOAB.i;
+
+end Sw;

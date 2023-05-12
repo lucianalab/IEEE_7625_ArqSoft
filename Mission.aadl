@@ -1,0 +1,30 @@
+package mission
+public
+with Hw, Sis;	
+
+----------------- Satellite Launcher System 
+system VLS
+end VLS;
+
+system implementation VLS.i 
+	subcomponents
+		Ba422: bus Hw::Serial422;
+		Ba1553: bus Hw::MILSTD1553B;
+		SisREC: system Sis::REC.i;
+		SisBC: system Sis::BC.i;		
+	connections
+		BA_1553 : bus access SisREC.BA1553 <-> BA1553; 
+		BA_422: bus access SisREC.BA422<->Ba422;
+		BA_BA422: bus access SisBC.BA422<->Ba422; 
+		C_pt1: port SisBC.out1 <-> SisRec.onCD1;
+		C_pt2: port SisBC.out2 <-> SisRec.onCD2; 
+	properties
+		Actual_Connection_Binding => (reference (BA422)) applies to C_pt1;
+		Actual_Connection_Binding => (reference (BA422)) applies to C_pt2;
+		Actual_Connection_Binding => (reference (BA1553)) applies to SisREC.C_MSI;
+		Actual_Connection_Binding => (reference (BA1553)) applies to SisREC.C_CTM;
+		Actual_Connection_Binding => (reference (BA1553)) applies to SisREC.C_AC1;
+		Actual_Connection_Binding => (reference (BA1553)) applies to SisREC.C_AC2;
+		Actual_Connection_Binding => (reference (BA1553)) applies to SisREC.C_MSI2;		
+end VLS.i;
+end mission;

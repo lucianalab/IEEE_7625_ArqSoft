@@ -1,0 +1,290 @@
+--  System Package 
+package Sis
+public
+with Hw, Sw, EMV2;	
+	
+--------------EGSE system	
+system BC
+ features
+   out1 : out event port;
+   out2 : out event port;		
+   BA422: requires bus access Hw::Serial422;
+end BC;
+	
+system implementation BC.i
+subcomponents
+	ProcBC: processor Hw::Intel.i;
+	SisBC: process Sw::BC.i;
+connections
+	C_BA_int: bus access ProcBC.BA_422 <-> BA422;
+	C1: port SisBC.p_out->out1;
+	C2: port SisBC.p_out ->out2;
+properties
+	Actual_Processor_Binding=> (reference (ProcBC)) applies to SisBC;
+	Actual_memory_Binding=> (reference (ProcBC.RAM)) applies to SisBC;			
+end BC.i;
+
+-------------------  Digital Controller System
+system CD
+features
+	Dados_in: in data port;
+	Dados_out: out data port; 
+	BC_on: in event port;
+	BA422: requires bus access Hw::Serial422;
+	BA1553: requires bus access Hw::MILSTD1553B;			
+end CD;
+
+system implementation CD.i
+	subcomponents
+	CDB: processor Hw::PowerPC.i;
+	SOAB: process Sw::SOAB.i;
+connections
+	C_BC: port BC_on -> CDB.OnCDB;	
+	Cin: port Dados_in -> SOAB.dados_sensor; 	
+	Cout: port SOAB.dados_AC-> Dados_out;	
+    C_1553_CD:bus access BA1553 <-> CDB.BA_1553;
+    C_422_CD:bus access BA422 <-> CDB.BA_422;
+    properties
+	Actual_Processor_Binding=> (reference (CDB)) applies to SOAB;
+	Actual_memory_Binding=> (reference (CDB.RAM)) applies to SOAB;  
+    annex emv2{**
+    use types ErrorLibrary;
+    use behavior ErrorLibrary::FailStop;
+    error propagations
+    	Dados_in: in propagation {BadValue};
+    	Dados_out: out propagation {BadValue};
+		processor: in propagation {ServiceError};  --propagacao de erro do CDB para o SOAB via Actual_Processor_Binding
+		memory: in propagation {ServiceError}; 
+		connection:	in propagation {ServiceError};	 
+    flows
+    	CDError: error source Dados_out{BadValue};-- when FailStop;
+    	MSIpath: error path Dados_in -> Dados_out {BadValue};
+    	f:error sink Dados_in{BadValue};
+    end propagations;
+    component error behavior
+    transitions
+    	--	t0 : Operational -[Dados_in{BadValue}]-> FailStop;
+    	    t1 : Operational -[processor{ServiceError}]-> FailStop;
+    	    t2: Operational -[memory{ServiceError}]-> FailStop;
+    	    t3: Operational -[connection{ServiceError}]-> FailStop;
+    propagations
+    	falhaCD: FailStop-[]-> Dados_out{BadValue};
+    	normal: Operational -[Dados_in {BadValue}]->Dados_out{BadValue};   
+    end component;   
+--    composite error behavior
+--    states     
+--         [CDB.Operational and SOAB.Operational and CDB.RAM.Operational]->Operational;
+--         [CDB.FailStop]->FailStop; 
+--         [SOAB.FailStop]->FailStop;
+--         [CDB.RAM.FailStop]->FailStop;      
+--      end composite;
+       properties
+    	EMV2::Hazards => ([description => "Falha interna";])applies to Failure; 
+    	EMV2::Hazards => ([description => "Erro no Processador";])applies to processor;
+    	EMV2::Hazards => ([description => "Erro na Memoria";])applies to memory;
+    	EMV2::Hazards => ([description => "Erro na conexao";])applies to connection;
+    **};
+end CD.i;
+
+system implementation CD.i2
+	subcomponents	
+	CDB: processor Hw::PowerPC.i;
+	SOAB: process Sw::SOAB.i;
+connections
+	C_BC: port BC_on -> CDB.OnCDB;	
+	Cin: port Dados_in -> SOAB.dados_sensor; 	
+	Cout: port SOAB.dados_AC-> Dados_out;	
+    C_1553_CD:bus access BA1553 <-> CDB.BA_1553;
+    C_422_CD:bus access BA422 <-> CDB.BA_422;
+    properties
+	Actual_Processor_Binding=> (reference (CDB)) applies to SOAB;
+	Actual_memory_Binding=> (reference (CDB.RAM)) applies to SOAB;  
+    annex emv2{**
+    use types ErrorLibrary;
+    use behavior ErrorLibrary::FailStop;
+    error propagations
+    	Dados_in: in propagation {BadValue};
+    	Dados_out: out propagation {BadValue};
+    	processor: in propagation {ServiceError};  --propagacao de erro do CDB para o SOAB via Actual_Processor_Binding
+    	memory: in propagation {ServiceError};	
+    	connection:	in propagation {ServiceError};	
+    flows
+    	CDError: error source Dados_out{BadValue};-- when FailStop;
+    	MSIpath: error path Dados_in -> Dados_out {BadValue};
+    	f:error sink Dados_in{BadValue};
+    end propagations;
+    component error behavior
+    transitions
+    	--	t: Operational -[Dados_in {BadValue}]-> FailStop;
+    	    t1 : Operational -[processor{ServiceError}]-> FailStop;
+    	    t2: Operational -[memory{ServiceError}]-> FailStop;  
+    	    t3: Operational -[connection{ServiceError}]-> FailStop; 	    
+    propagations
+    	falhaCD: FailStop-[]-> Dados_out{BadValue};
+    	normal: Operational -[Dados_in {BadValue}]->Dados_out{BadValue};        
+    end component;
+    
+--    composite error behavior
+--    states     
+--         [CDB.Operational and SOAB.Operational and CDB.RAM.Operational]->Operational;
+--         [CDB.FailStop]->FailStop; 
+--         [SOAB.FailStop]->FailStop;
+--         [CDB.RAM.FailStop]->FailStop;  
+--             
+--      end composite;
+     properties
+    	EMV2::Hazards => ([description => "Falha interna";])applies to Failure; 
+    	EMV2::Hazards => ([description => "Erro no Processador";])applies to processor;
+    	EMV2::Hazards => ([description => "Erro na Memoria";])applies to memory;
+    	EMV2::Hazards => ([description => "Erro na conexao";])applies to connection;
+   **};
+end CD.i2;
+
+
+------------------- Voter AC System
+system AC
+features
+	Dados1_in: in data port;
+	Dados2_in: in data port;
+	Dados_out: out data port;
+	Dados1_in_failed:out event port;
+	Dados2_in_failed: out event port;
+	BA422: requires bus access Hw::Serial422;
+	BA1553: requires bus access Hw::MILSTD1553B;	
+     annex emv2{**
+    use types ErrorLibrary;  
+    error propagations
+    	Dados1_in: in propagation {BadValue};
+    	Dados2_in: in propagation {BadValue};
+   		Dados_out: out propagation {BadValue};
+   flows
+    	ACError: error source Dados_out{BadValue};
+    	CD1Error_path: error path Dados1_in -> Dados_out {BadValue};
+    	CD2Error_path: error path Dados2_in -> Dados_out {BadValue};
+    	CD1Error_sink: error sink Dados1_in {BadValue};
+    	CD2Error_sink: error sink Dados2_in {BadValue};
+    end propagations;
+**};			
+end AC;
+
+system implementation AC.i
+subcomponents
+	AC1: processor Hw::PowerPC_voter.i;
+	Voter: process Sw::AC.i;
+connections
+	Cin: port Dados1_in -> Voter.inSOAB1;
+	Cin2: port Dados2_in -> Voter.inSOAB2; 	
+	Cout: port Voter.dados_atuador->Dados_out;  
+	C_fail1: port Voter.Dados1_in_failed -> Dados1_in_failed;
+	C_fail2: port Voter.Dados2_in_failed -> Dados2_in_failed;	 
+    C_1553_AC:bus access BA1553 -> AC1.BA_1553;
+    C_422_AC: bus access BA422 -> AC1.BA_422;
+   
+properties
+	Actual_Processor_Binding=> (reference (AC1)) applies to Voter;
+	Actual_memory_Binding=> (reference (AC1.RAM)) applies to Voter;		
+    annex emv2{**
+    use types ErrorLibrary;
+    use behavior ErrorLibrary::FailStop;
+    component error behavior   		
+    propagations
+    	falha: FailStop-[]-> Dados_out{BadValue};
+    	Error_in1e2: Operational -[Dados1_in {BadValue} and Dados2_in {BadValue}]->Dados_out{BadValue};
+    	Error_in1ou2: Operational -[Dados1_in{BadValue} or Dados2_in {BadValue}]->Dados_out{NoError};  			 
+    end component;
+    **};	
+end AC.i;
+
+---------------------- Control System 
+system REC
+features	
+	BA422: requires bus access Hw::Serial422;
+	BA1553: requires bus access Hw::MILSTD1553B; 
+	onCD1: in event port;
+	onCD2: in event port;	
+	annex emv2{**
+    use types ErrorLibrary;
+    use behavior VLSLibrary::DegradedREC;
+    component error behavior
+		-- attempt do model error detection from within subcomponents without an explicit monitor
+		events
+		CD1failed: error event;
+		CD2failed: error event;
+		ACfailed: error event;
+		MSIfailed: error event;
+		CTMfailed: error event;
+		transitions
+  		Operational-[CD1failed or CD2failed]-> Degraded;
+  		Degraded -[ CD1failed or CD2failed]-> FailStop;
+  		Operational-[ACfailed]-> FailStop;
+  		Degraded -[ACfailed]-> FailStop;
+  		Degraded -[MSIfailed]-> FailStop;
+  		Degraded -[CTMfailed]-> FailStop;
+  		Operational -[ACfailed]-> FailStop;
+  		Operational -[MSIfailed]-> FailStop;
+  		Operational -[CTMfailed]-> FailStop;
+   end  component;
+  
+    **};	
+end REC;
+
+system implementation REC.i
+subcomponents
+	CD1: system CD.i in modes (Red,CD1_OK);
+	CD2: system CD.i2 in modes (Red, CD2_OK); 
+	AC: system AC.i in modes (Initialize, Red, CD1_OK, CD2_OK); 
+	MSI: device Hw::Sensor in modes (Initialize, Red, CD1_OK, CD2_OK); 
+	CTM: device Hw::Atuador in modes (Initialize, Red, CD1_OK, CD2_OK); 
+connections
+	C_BC:  port onCD1 -> CD1.BC_on in modes (Initialize, Red, CD1_OK);
+	C_BC2: port onCD2 -> CD2.BC_on in modes (Initialize,Red, CD2_OK);  	
+	C_MSI: port MSI.dados_sensor ->CD1.Dados_in in modes (Red, CD1_OK);
+	C_MSI2: port MSI.dados_sensor ->CD2.Dados_in in modes (Red, CD2_OK);
+    C_AC1: port CD1.Dados_out -> AC.Dados1_in in modes (Red, CD1_OK);
+    C_AC2: port CD2.Dados_out -> AC.Dados2_in in modes (Red, CD2_OK); 
+	C_CTM: port AC.Dados_out-> CTM.d_atuador in modes (Initialize, Red, CD1_OK, CD2_OK);
+	C_1553_CD1: bus access CD1.BA1553<->BA1553 in modes (Red, CD1_OK);
+	C_1553_CD2: bus access CD2.BA1553<->BA1553 in modes (Red, CD2_OK);
+    C_1553_AC: bus access AC.BA1553 <->BA1553 in modes (Initialize, Red, CD1_OK, CD2_OK); 
+	C_422_CD1: bus access CD1.BA422 <-> BA422 in modes (Red, CD1_OK);
+	C_422_CD2: bus access CD2.BA422 <-> BA422 in modes (Red, CD2_OK);
+	C_422_AC: bus access AC.BA422 <-> BA422 in modes (Initialize, Red, CD1_OK, CD2_OK);
+	C_MSI_1553: bus access MSI.BA_sensor <-> BA1553 in modes (Initialize, Red, CD1_OK, CD2_OK);
+	C_CTM_1553: bus access CTM.BA_atuador <-> BA1553 in modes (Initialize, Red, CD1_OK, CD2_OK);	
+	modes
+		Initialize:initial mode;
+		Red: mode;
+		CD1_OK:mode;
+		CD2_OK:mode;
+		Stop:mode;
+		Started: Initialize-[onCD1,onCD2]->Red;
+		Red-[AC.Dados2_in_failed]->CD1_OK;
+		Red-[AC.Dados1_in_failed]->CD2_OK;
+		CD1_OK-[AC.Dados1_in_failed]->Stop;
+		CD2_OK-[AC.Dados2_in_failed]->Stop;
+		
+	annex emv2{**
+    use types ErrorLibrary;
+    use behavior VLSLibrary::DegradedREC;	
+    component error behavior
+    	mode mappings
+    	Operational in modes (Initialize, Red);
+    	Degraded in modes (CD1_OK,CD2_OK);
+        FailStop in modes (Stop);
+    end component;	
+    
+    composite error behavior
+    states
+         [MSI.Operational and CD1.Operational and CD2.Operational and AC.Operational and CTM.Operational]->Operational;
+         [MSI.FailStop]->FailStop; 
+         [CD1.FailStop and CD2.FailStop]->FailStop;
+         [AC.FailStop]->FailStop;
+		 [CTM.FailStop]->FailStop;      
+         [MSI.Operational and AC.Operational and CTM.Operational and (CD1.FailStop or CD2.FailStop)]->Degraded;  
+		                    
+     end composite;
+     
+   	**};
+		
+end REC.i;
+end Sis;
